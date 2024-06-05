@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken'
-import { resolve } from 'path'
+import { TokenPayload } from '~/models/requests/Users.requests'
 
 //làm hàm nhận vào payload, privateKey, options và từ đó ký tên
 
@@ -16,6 +16,22 @@ export const signToken = ({
     jwt.sign(payload, privateKey, options, (err, token) => {
       if (err) throw reject(err)
       resolve(token as string)
+    })
+  })
+}
+
+// hàm nhận vào token, và secretOrPublicKey ?
+export const verifyToken = ({
+  token,
+  secretOrPublicKey = process.env.JWT_SECRET as string
+}: {
+  token: string
+  secretOrPublicKey?: string
+}) => {
+  return new Promise<TokenPayload>((resolve, reject) => {
+    jwt.verify(token, secretOrPublicKey, (error, decoded) => {
+      if (error) throw reject(error)
+      resolve(decoded as TokenPayload)
     })
   })
 }
