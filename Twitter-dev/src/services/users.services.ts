@@ -13,14 +13,16 @@ class UsersService {
   private signAccessToken(user_id: string) {
     return signToken({
       payload: { user_id, token_type: TokenType.AccessToken },
-      options: { expiresIn: process.env.ACCESS_TOKEN_EXPIRE_IN }
+      options: { expiresIn: process.env.ACCESS_TOKEN_EXPIRE_IN },
+      privateKey: process.env.JWT_SECRET_ACCESS_TOKEN as string
     })
   }
   //hàm nhận vào user_id và bỏ vào payload để tạo refresh_token
   private signRefreshToken(user_id: string) {
     return signToken({
       payload: { user_id, token_type: TokenType.RefreshToken },
-      options: { expiresIn: process.env.REFRESH_TOKEN_EXPIRE_IN }
+      options: { expiresIn: process.env.REFRESH_TOKEN_EXPIRE_IN },
+      privateKey: process.env.JWT_SECRET_REFRESH_TOKEN as string
     })
   }
 
