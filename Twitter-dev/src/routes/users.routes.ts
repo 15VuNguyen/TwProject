@@ -1,7 +1,13 @@
 import { Router } from 'express'
-import { loginController, logoutController, registerController } from '~/controllers/users.controllers'
+import {
+  emailVerifyTokenController,
+  loginController,
+  logoutController,
+  registerController
+} from '~/controllers/users.controllers'
 import {
   accessTokenValidator,
+  emailVerifyTokenValidator,
   loginValidator,
   refreshTokenValidator,
   registerValidator
@@ -40,5 +46,19 @@ usersRouter.post('/register', registerValidator, wrapAsync(registerController))
   body: {refresh_token: string}
 */
 usersRouter.post('/logout', accessTokenValidator, refreshTokenValidator, wrapAsync(logoutController))
+
+/*
+des: verify email token 
+khi người dùng đăng ký họ sẽ nhận đc mail có link dạng
+http://localhost:3000/verify-email?token=<email_verify_token>
+nếu mà nhấp vào link thì sẽ tạo ra req gửi email_verify_token lên server
+server kiểm tra email_verify_token có hợp lệ hay không
+thì từ decode email_verify_token sẽ lấy ra user_id
+và vào user_id đó để uptae email_verify_token thành '', và verify = 1, update at
+path: /verify-email
+method: POST
+body: {email_verify_token: string}
+*/
+usersRouter.post('/verify-email', emailVerifyTokenValidator, wrapAsync(emailVerifyTokenController))
 
 export default usersRouter
