@@ -4,6 +4,7 @@ import databaseService from '~/services/database.services'
 import usersService from '~/services/users.services'
 import { ParamsDictionary } from 'express-serve-static-core'
 import {
+  ChangePasswordReqBody,
   FollowReqBody,
   GetProfileReqParams,
   LoginReqBody,
@@ -197,5 +198,16 @@ export const unfollowController = async (req: Request<UnfollowReqParams>, res: R
   const { user_id: followed_user_id } = req.params
   //gọi hàm unfollow
   const result = await usersService.unfollow(user_id, followed_user_id)
+  return res.json(result)
+}
+
+export const changePasswordController = async (
+  req: Request<ParamsDictionary, any, ChangePasswordReqBody>,
+  res: Response,
+  next: NextFunction
+) => {
+  const { user_id } = req.decoded_authorization as TokenPayload //lấy user_id từ decoded_authorization của access_token
+  const { password } = req.body //lấy old_password và password từ req.body
+  const result = await usersService.changePassword(user_id, password) //chưa code changePassword
   return res.json(result)
 }
