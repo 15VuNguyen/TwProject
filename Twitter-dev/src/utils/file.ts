@@ -22,12 +22,12 @@ export const getNameFromFullname = (filename: string) => {
 }
 
 //hàm xử lý file mà client đã gửi lên
-export const handleUploadSingleImage = async (req: Request) => {
+export const handleUploadImage = async (req: Request) => {
   const form = formidable({
     uploadDir: path.resolve(UPLOAD_TEMP_DIR), //lưu ở đâu
-    maxFiles: 1, //tối đa bao nhiêu
+    maxFiles: 4, //tối đa bao nhiêu
     keepExtensions: true, //có lấy đuôi mở rộng không .png, .jpg
-    maxFileSize: 300 * 1024, //tối đa bao nhiêu byte, 300kb
+    maxFileSize: 300 * 1024 * 4, //tối đa bao nhiêu byte, 300kb
     //xài option filter để kiểm tra file có phải là image không
     filter: function ({ name, originalFilename, mimetype }) {
       const valid = name === 'image' && Boolean(mimetype?.includes('image/'))
@@ -44,13 +44,13 @@ export const handleUploadSingleImage = async (req: Request) => {
     }
   })
 
-  return new Promise<File>((resolve, reject) => {
+  return new Promise<File[]>((resolve, reject) => {
     form.parse(req, (err, fields, files) => {
       if (err) return reject(err) //để ý dòng này
       if (!files.image) {
         return reject(new Error('Image is empty'))
       }
-      return resolve((files.image as File[])[0])
+      return resolve(files.image as File[])
     })
   })
 }
