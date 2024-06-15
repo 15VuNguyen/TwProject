@@ -10,6 +10,7 @@ import { USERS_MESSAGES } from '~/constants/messages'
 import { ErrorWithStatus } from '~/models/Errors'
 import HTTP_STATUS from '~/constants/httpStatus'
 import { Follower } from '~/models/schemas/Followers.schema'
+import axios from 'axios'
 
 class UsersService {
   //hàm nhận vào user_id và bỏ vào payload để tạo access_token
@@ -348,6 +349,98 @@ class UsersService {
       new RefreshToken({ user_id: new ObjectId(user_id), token: new_refresh_token })
     )
     return { access_token: access_token, refresh_token: new_refresh_token }
+  }
+
+  //getOAuthGoogleToken dùng code nhận đc để yêu cầu google tạo id_token
+  private async getOAuthGoogleToken(code: string) {
+    const body = {
+      code,
+      client_id: process.env.GOOGLE_CLIENT_ID, //khai báo trong .env bằng giá trị trong file json
+      client_secret: process.env.GOOGLE_CLIENT_SECRET, //khai báo trong .env bằng giá trị trong file json
+      redirect_uri: process.env.GOOGLE_REDIRECT_URI, //khai báo trong .env bằng giá trị trong file json
+      grant_type: 'authorization_code'
+    }
+    //giờ ta gọi api của google, truyền body này lên để lấy id_token
+    //ta dùng axios để gọi api `npm i axios`
+    const { data } = await axios.post(`https://oauth2.googleapis.com/token`, body, {
+      headers: {
+        'Content-Type': 'application/json' //kiểu truyền lên là form
+      }
+    }) //nhận đc response nhưng đã rã ra lấy data
+    return data as {
+      access_token: string
+      id_token: string
+    }
+  }
+
+  //dùng id_token để lấy thông tin của người dùng
+  private async getGoogleUserInfo(access_token: string, id_token: string) {
+    const { data } = await axios.get(`https://www.googleapis.com/oauth2/v3/userinfo`, {
+      params: {
+        access_token,
+        alt: 'json'
+      },
+      headers: {
+        Authorization: `Bearer ${id_token}`
+      }
+    })
+    //ta chỉ lấy những thông tin cần thiết
+    return data as {
+      id: string
+      email: string
+      email_verified: boolean
+      name: string
+      given_name: string
+      family_name: string
+      picture: string
+      locale: string
+    }
+  }
+
+  async oAuth(code: string) {
+    //dùng code lấy bộ token từ google
+    const { access_token, id_token } = await this.getOAuthGoogleToken(code)
+    const userInfor = await this.getGoogleUserInfo(access_token, id_token)
+    //kiểm tra xem user đã verify email chưa
+    if (!userInfor.email_verified) {
+      throw new ErrorWithStatus({
+        message: USERS_MESSAGES.EMAIL_NOT_VERIFIED, // trong message.ts thêm GMAIL_NOT_VERIFIED: 'Gmail not verified'
+        status: HTTP_STATUS.BAD_REQUEST //thêm trong HTTP_STATUS BAD_REQUEST:400
+      })
+    }
+    //kiểm tra email đã tồn tại chưa tồn tại trong database của mình chưa
+    const user = await databaseService.users.findOne({ email: userInfor.email })
+    //nếu có thì nghĩa là client đăng nhập
+    if (user) {
+      const [access_token, refresh_token] = await this.signAccessAndRefreshTokens({
+        user_id: user._id.toString(),
+        verify: user.verify
+      }) //thêm user_id và verify
+      //lưu refresh token vào database
+      await databaseService.refreshTokens.insertOne(new RefreshToken({ user_id: user._id, token: refresh_token }))
+      return {
+        access_token,
+        refresh_token,
+        new_user: 0, //đây là user cũ
+        verify: user.verify
+      }
+    } else {
+      //random string password
+      const password = Math.random().toString(36).slice(1, 15)
+      //chưa tồn tại thì cho tạo mới, hàm register(đã viết trước đó) trả về access và refresh token
+      const data = await this.register({
+        email: userInfor.email,
+        name: userInfor.name,
+        password: password,
+        confirm_password: password,
+        date_of_birth: new Date().toISOString()
+      })
+      return {
+        ...data,
+        new_user: 1, //đây là user mới
+        verify: UserVerifyStatus.Unverified
+      }
+    }
   }
 }
 
